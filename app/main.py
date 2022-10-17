@@ -16,9 +16,9 @@ warnings.filterwarnings("ignore")
 
 
 # ----READ IN CSV FILES----
-books = read_data('/Users/dtorres/PycharmProjects/Book_Recommendation_App/data/Books.csv')
-users = read_data('/Users/dtorres/PycharmProjects/Book_Recommendation_App/data/Users.csv')
-ratings = read_data('/Users/dtorres/PycharmProjects/Book_Recommendation_App/data/Ratings.csv')
+books = read_data('../data/Books.csv')
+users = read_data('../data/Users.csv')
+ratings = read_data('../data/Ratings.csv')
 
 
 # ----PROCESS DATA----
