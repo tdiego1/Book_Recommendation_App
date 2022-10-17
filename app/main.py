@@ -42,6 +42,8 @@ num_rating = rating_with_book.groupby('title')['rating'].count().reset_index()
 num_rating.rename(columns= {'rating': 'number_of_ratings'}, inplace=True)
 final_rating = rating_with_book.merge(num_rating, on='title')
 final_rating = final_rating[final_rating['number_of_ratings'] >= 50]
+
+# Remove duplicate records
 final_rating.drop_duplicates(['user_id', 'title'], inplace=True)
 
 # Create pivot table
@@ -65,8 +67,10 @@ sel_index = book_pivot.index.get_loc(selection)
 # Check if there is a book selected.
 if selection is not None:
     st.markdown("##### This is your selected book:")
+
     # Create columns
     col1, col2, col3 = st.columns(3)
+
     # Find image URL and display book
     image = books.loc[books['title'] == selection, 'image'].iloc[0]
 
@@ -105,7 +109,7 @@ st.markdown("---")
 
 
 # ----DISPLAY SCATTER PLOT----
-# Get user ages
+# Get user ages older than 12 and less than 90
 x_values = []
 user_ages = users[~users.age.isnull()]
 user_ages = user_ages[user_ages['age'] < 90]
