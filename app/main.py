@@ -1,16 +1,14 @@
 # Streamlit library's
 import numpy as np
-import pandas
 import pandas as pd
 import scipy.sparse
 import sklearn.neighbors
 import streamlit as st
+import plotly.express as px
 from utils import read_data, head, body
 
 # Streamlit header
 head()
-
-
 
 # Filter out warnings
 import warnings
@@ -28,12 +26,13 @@ books = books[['ISBN', 'Book-Title', 'Book-Author', 'Year-Of-Publication', 'Publ
 books.rename(columns= {'Book-Title':'title', 'Book-Author':'author', 'Year-Of-Publication': 'year', 'Publisher': 'publisher',
                        'Image-URL-M': 'image'}, inplace=True)
 users.rename(columns= {'User-ID':'user_id', 'Location':'location', 'Age':'age'}, inplace=True)
-ratings.rename(columns= {'User-ID':'user_id', 'Book-Rating':'rating'}, inplace=True)
+ratings.rename(columns= {'User-ID': 'user_id', 'Book-Rating': 'rating'}, inplace=True)
 
-# Get users who have 150 reviews or more
+# Get users who have 100 reviews or more
 x = ratings['user_id'].value_counts() > 200
 y = x[x].index
 ratings = ratings[ratings['user_id'].isin(y)]
+
 
 # Merge ratings with books
 rating_with_book = ratings.merge(books, on='ISBN')
@@ -42,14 +41,14 @@ rating_with_book = ratings.merge(books, on='ISBN')
 number_rating = rating_with_book.groupby('title')['rating'].count().reset_index()
 number_rating.rename(columns= {'rating':'number_of_ratings'}, inplace=True)
 final_rating = rating_with_book.merge(number_rating, on='title')
-final_rating = final_rating[final_rating['number_of_ratings'] >= 100]
+final_rating = final_rating[final_rating['number_of_ratings'] >= 50]
 final_rating.drop_duplicates(['user_id', 'title'], inplace=True)
 
 # Create pivot table
 book_pivot = final_rating.pivot_table(columns='user_id', index='title', values='rating')
 book_pivot.fillna(0, inplace=True)
 
-# Create matrix
+# Create matrix/
 book_sparse = scipy.sparse.csr_matrix(book_pivot)
 
 # Train nearest neighbor algorithm
@@ -57,21 +56,118 @@ model = sklearn.neighbors.NearestNeighbors(algorithm='brute')
 model.fit(book_sparse)
 
 # Gets input from user.
-selection = st.selectbox('Select a movie:', book_pivot.index)
+selection = st.selectbox('Select a book:', book_pivot.index)
 sel_index = book_pivot.index.get_loc(selection)
 
 # Check if there is a book selected.
 if selection is not None:
+    st.markdown("##### This is your selected book:")
+    # Create columns
+    col1, col2, col3 = st.columns(3)
     # Find image URL and display book
     image = books.loc[books['title'] == selection, 'image'].iloc[0]
-    st.image(image, caption=selection, use_column_width='never')
 
+    # Centers Book image.
+    with col1:
+        st.write('')
+    with col2:
+        st.image(image, caption=selection, width=100)
+    with col3:
+        st.write('')
+
+
+# Remove selected book from suggestion pool
+book_pivot.drop(index=selection, inplace=True)
 # Get suggestions
 distances, suggestions = model.kneighbors(book_pivot.iloc[sel_index, :].values.reshape(1, -1))
 
-for i in range(len(suggestions)):
-    print(book_pivot.index[suggestions[i]])
+# Get image files and titles for book suggestions
+rec_images = []
+rec_titles = []
+for i in range(len(suggestions[0])):
+    rec_images.append(books.loc[books['title'] == book_pivot.index[suggestions[0][i]], 'image'].iloc[0])
+    rec_titles.append(books.loc[books['title'] == book_pivot.index[suggestions[0][i]], 'title'].iloc[0])
+
+# Display Recommended books
+st.markdown("##### These are your recommended books:")
+st.image(rec_images, caption=rec_titles, width=100)
+
+# Display seperator
+st.markdown("---")
 
 
+# DISPLAY SCATTER PLOT
+# Get user ages
+x_values = []
+user_ages = users[~users.age.isnull()]
+user_ages = user_ages[user_ages['age'] < 90]
+user_ages = user_ages[user_ages['age'] > 12]
+user_ages = user_ages[['user_id', 'age']]
+
+# Merge ratings with user ages and average the ratings
+ages_ratings = final_rating.groupby('user_id', as_index=False, sort=False)['rating'].mean()
+ages_ratings = ages_ratings.merge(user_ages, on='user_id')
+ages_ratings.rename(columns={'rating': 'avg_rating'}, inplace=True)
+
+# Display scatter plot
+plot = px.scatter(data_frame=ages_ratings, x='age', y='avg_rating',
+                  labels={
+                      'age': 'User Age',
+                      'avg_rating': 'Average Rating'
+                  },
+                  title='Average Rating of User by Age')
+st.plotly_chart(plot)
 
 
+# DISPLAY HISTOGRAM
+# Group books by the same year together
+year_reviews = rating_with_book.groupby('year')['rating'].count().reset_index()
+year_reviews.year = pd.to_numeric(year_reviews.year, errors='coerce').fillna(0).astype('int')
+year_reviews.rename(columns={'rating': 'count'}, inplace=True)
+
+# Correct publishing year
+year_reviews = year_reviews[(year_reviews['year'] >= 1900)]
+year_reviews = year_reviews[year_reviews['year'] <= 2022]
+
+# Display Histogram
+plot2 = px.histogram(year_reviews, x='year', y='count', nbins=80, log_y=True,
+                     labels={
+                         'year': 'Publishing Year',
+                         'count': 'Number of Ratings'
+                     },
+                     title='Number of Ratings by Publishing Year')
+st.plotly_chart(plot2)
+
+
+# DISPLAY BAR CHART FOR LOCATIONS
+# Get users and locations where the location is not Null
+user_countries = users[~users.location.isnull()]
+user_countries = user_countries[['user_id', 'location']]
+
+# Get only countries
+user_countries['location'] = user_countries['location'].str.rsplit(',').str[-1]
+user_countries['location'] = user_countries['location'].str.strip()
+
+# Replace empty values with NaN
+user_countries['location'].replace('', np.nan, inplace=True)
+user_countries['location'].replace('n/a', np.nan, inplace=True)
+user_countries.dropna(subset=['location'], inplace=True)
+
+# Change 'us' to 'usa'
+user_countries['location'].replace('us', 'usa', inplace=True)
+
+# Merge users and ratings
+country_reviews = ratings.groupby('user_id', as_index=False, sort=False)['rating'].size()
+country_reviews = country_reviews.merge(user_countries, on='user_id')
+country_reviews.rename(columns={'size': 'count'}, inplace=True)
+country_reviews = country_reviews.groupby('location', as_index=False, sort=False)['count'].sum()
+country_reviews.sort_values(by=['count'], inplace=True, ascending=False)
+
+# Display Bar Chart
+plot3 = px.bar(country_reviews, x='location', y='count', log_y=True,
+               labels={
+                   'count': 'Number of Ratings',
+                   'location': 'Country'
+               },
+               title='Number of Ratings Based on Country')
+st.plotly_chart(plot3)

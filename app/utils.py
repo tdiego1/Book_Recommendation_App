@@ -1,11 +1,9 @@
-import numpy as np
 import pandas as pd
-import scipy.stats
 import streamlit as st
 
 @st.cache(suppress_st_warning=True)
 def read_data(path):
-    return pd.read_csv(path, error_bad_lines=False)
+    return pd.read_csv(path, error_bad_lines=False, encoding='utf-8')
 
 
 def head():
