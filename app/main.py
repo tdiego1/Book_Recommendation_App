@@ -1,16 +1,17 @@
+import warnings
 import numpy as np
 import pandas as pd
 import scipy.sparse
 from sklearn.metrics.pairwise import cosine_similarity
 import streamlit as st
 import plotly.express as px
-from utils import read_data, head, body
+from utils import read_data, head
 
 # Streamlit header
 head()
 
 # Filter out warnings
-import warnings
+
 warnings.filterwarnings("ignore")
 
 # ----READ IN CSV FILES----
@@ -18,20 +19,20 @@ books = read_data('/Users/dtorres/PycharmProjects/Book_Recommendation_App/data/B
 users = read_data('/Users/dtorres/PycharmProjects/Book_Recommendation_App/data/Users.csv')
 ratings = read_data('/Users/dtorres/PycharmProjects/Book_Recommendation_App/data/Ratings.csv')
 
-
 # ----PROCESS DATA----
 # Remove columns that are not needed
 books = books[['ISBN', 'Book-Title', 'Book-Author', 'Year-Of-Publication', 'Publisher', 'Image-URL-M']]
 
 # Rename the columns for each data set
-books.rename(columns= {'Book-Title':'title', 'Book-Author':'author', 'Year-Of-Publication': 'year', 'Publisher': 'publisher',
-                       'Image-URL-M': 'image'}, inplace=True)
-users.rename(columns= {'User-ID':'user_id', 'Location':'location', 'Age':'age'}, inplace=True)
-ratings.rename(columns= {'User-ID': 'user_id', 'Book-Rating': 'rating'}, inplace=True)
+books.rename(
+    columns={'Book-Title': 'title', 'Book-Author': 'author', 'Year-Of-Publication': 'year', 'Publisher': 'publisher',
+             'Image-URL-M': 'image'}, inplace=True)
+users.rename(columns={'User-ID': 'user_id', 'Location': 'location', 'Age': 'age'}, inplace=True)
+ratings.rename(columns={'User-ID': 'user_id', 'Book-Rating': 'rating'}, inplace=True)
 
 # Get users who have 150 reviews or more
-x = ratings['user_id'].value_counts() > 150
-y = x[x].index
+count_ratings = ratings['user_id'].value_counts() > 150
+y = count_ratings[count_ratings].index
 ratings = ratings[ratings['user_id'].isin(y)]
 
 # Merge ratings with books
@@ -39,7 +40,7 @@ rating_with_book = ratings.merge(books, on='ISBN')
 
 # Extract books that have received more than 50 ratings
 num_rating = rating_with_book.groupby('title')['rating'].count().reset_index()
-num_rating.rename(columns= {'rating': 'number_of_ratings'}, inplace=True)
+num_rating.rename(columns={'rating': 'number_of_ratings'}, inplace=True)
 final_rating = rating_with_book.merge(num_rating, on='title')
 final_rating = final_rating[final_rating['number_of_ratings'] >= 50]
 
@@ -50,14 +51,12 @@ final_rating.drop_duplicates(['user_id', 'title'], inplace=True)
 book_pivot = final_rating.pivot_table(columns='user_id', index='title', values='rating')
 book_pivot.fillna(0, inplace=True)
 
-
 # ----MODEL DATA----
 # Create matrix
 book_sparse = scipy.sparse.csr_matrix(book_pivot)
 
 # Model data with Cosine Similarity
 model = cosine_similarity(book_sparse)
-
 
 # ----GETS BOOK SELECTION FROM USER----
 # Gets input from user.
@@ -82,15 +81,13 @@ if selection is not None:
     with col3:
         st.write('')
 
-
 # ----GET RECOMMENDED BOOKS----
 # Remove selected book from suggestion pool
 book_pivot.drop(index=selection, inplace=True)
 
 # Get suggestions
 suggestions_list = list(enumerate(model[sel_index]))
-suggestions = sorted(suggestions_list, key = lambda x:x[1], reverse=True)[1:7]
-
+suggestions = sorted(suggestions_list, key=lambda x: x[1], reverse=True)[1:7]
 
 # ----DISPLAY RECOMMENDED BOOKS----
 # Get image files and titles for book suggestions
@@ -106,7 +103,6 @@ st.image(rec_images, caption=rec_titles, width=100)
 
 # Display seperator
 st.markdown("---")
-
 
 # ----DISPLAY SCATTER PLOT----
 # Get user ages older than 12 and less than 90
@@ -130,7 +126,6 @@ plot = px.scatter(data_frame=ages_ratings, x='age', y='avg_rating',
                   title='Average Rating of User by Age')
 st.plotly_chart(plot)
 
-
 # ----DISPLAY HISTOGRAM----
 # Group books by the same year together
 year_reviews = rating_with_book.groupby('year')['rating'].count().reset_index()
@@ -149,7 +144,6 @@ plot2 = px.histogram(year_reviews, x='year', y='count', nbins=80, log_y=True,
                      },
                      title='Number of Ratings by Publishing Year')
 st.plotly_chart(plot2)
-
 
 # ----DISPLAY BAR CHART FOR LOCATIONS----
 # Get users and locations where the location is not Null
