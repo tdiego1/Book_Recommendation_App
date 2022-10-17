@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import scipy.sparse
 import sklearn.neighbors
+from sklearn.metrics.pairwise import cosine_similarity
 import streamlit as st
 import plotly.express as px
 from utils import read_data, head, body
@@ -52,8 +53,11 @@ book_pivot.fillna(0, inplace=True)
 book_sparse = scipy.sparse.csr_matrix(book_pivot)
 
 # Train nearest neighbor algorithm
-model = sklearn.neighbors.NearestNeighbors(algorithm='brute')
-model.fit(book_sparse)
+#model = sklearn.neighbors.NearestNeighbors(algorithm='brute')
+#model.fit(book_sparse)
+
+# Cosine Similarity
+model = cosine_similarity(book_sparse)
 
 # Gets input from user.
 selection = st.selectbox('Select a book:', book_pivot.index)
@@ -78,15 +82,18 @@ if selection is not None:
 
 # Remove selected book from suggestion pool
 book_pivot.drop(index=selection, inplace=True)
+
 # Get suggestions
-distances, suggestions = model.kneighbors(book_pivot.iloc[sel_index, :].values.reshape(1, -1))
+suggestions_list = list(enumerate(model[sel_index]))
+suggestions = sorted(suggestions_list, key = lambda x:x[1], reverse=True)[1:7]
 
 # Get image files and titles for book suggestions
 rec_images = []
 rec_titles = []
-for i in range(len(suggestions[0])):
-    rec_images.append(books.loc[books['title'] == book_pivot.index[suggestions[0][i]], 'image'].iloc[0])
-    rec_titles.append(books.loc[books['title'] == book_pivot.index[suggestions[0][i]], 'title'].iloc[0])
+
+for i in range(len(suggestions)):
+    rec_images.append(books.loc[books['title'] == book_pivot.index[int(suggestions[i][0])], 'image'].iloc[0])
+    rec_titles.append(books.loc[books['title'] == book_pivot.index[int(suggestions[i][0])], 'title'].iloc[0])
 
 # Display Recommended books
 st.markdown("##### These are your recommended books:")
