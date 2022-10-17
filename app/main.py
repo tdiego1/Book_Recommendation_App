@@ -28,19 +28,18 @@ books.rename(columns= {'Book-Title':'title', 'Book-Author':'author', 'Year-Of-Pu
 users.rename(columns= {'User-ID':'user_id', 'Location':'location', 'Age':'age'}, inplace=True)
 ratings.rename(columns= {'User-ID': 'user_id', 'Book-Rating': 'rating'}, inplace=True)
 
-# Get users who have 100 reviews or more
+# Get users who have 150 reviews or more
 x = ratings['user_id'].value_counts() > 150
 y = x[x].index
 ratings = ratings[ratings['user_id'].isin(y)]
-
 
 # Merge ratings with books
 rating_with_book = ratings.merge(books, on='ISBN')
 
 # Extract books that have received more than 50 ratings
-number_rating = rating_with_book.groupby('title')['rating'].count().reset_index()
-number_rating.rename(columns= {'rating':'number_of_ratings'}, inplace=True)
-final_rating = rating_with_book.merge(number_rating, on='title')
+num_rating = rating_with_book.groupby('title')['rating'].count().reset_index()
+num_rating.rename(columns= {'rating': 'number_of_ratings'}, inplace=True)
+final_rating = rating_with_book.merge(num_rating, on='title')
 final_rating = final_rating[final_rating['number_of_ratings'] >= 50]
 final_rating.drop_duplicates(['user_id', 'title'], inplace=True)
 
@@ -98,7 +97,7 @@ st.image(rec_images, caption=rec_titles, width=100)
 st.markdown("---")
 
 
-# DISPLAY SCATTER PLOT
+# ----DISPLAY SCATTER PLOT----
 # Get user ages
 x_values = []
 user_ages = users[~users.age.isnull()]
@@ -112,7 +111,7 @@ ages_ratings = ages_ratings.merge(user_ages, on='user_id')
 ages_ratings.rename(columns={'rating': 'avg_rating'}, inplace=True)
 
 # Display scatter plot
-plot = px.scatter(data_frame=ages_ratings, x='age', y='avg_rating',
+plot = px.scatter(data_frame=ages_ratings, x='age', y='avg_rating', trendline='ols',
                   labels={
                       'age': 'User Age',
                       'avg_rating': 'Average Rating'
@@ -121,7 +120,7 @@ plot = px.scatter(data_frame=ages_ratings, x='age', y='avg_rating',
 st.plotly_chart(plot)
 
 
-# DISPLAY HISTOGRAM
+# ----DISPLAY HISTOGRAM----
 # Group books by the same year together
 year_reviews = rating_with_book.groupby('year')['rating'].count().reset_index()
 year_reviews.year = pd.to_numeric(year_reviews.year, errors='coerce').fillna(0).astype('int')
@@ -141,7 +140,7 @@ plot2 = px.histogram(year_reviews, x='year', y='count', nbins=80, log_y=True,
 st.plotly_chart(plot2)
 
 
-# DISPLAY BAR CHART FOR LOCATIONS
+# ----DISPLAY BAR CHART FOR LOCATIONS----
 # Get users and locations where the location is not Null
 user_countries = users[~users.location.isnull()]
 user_countries = user_countries[['user_id', 'location']]
