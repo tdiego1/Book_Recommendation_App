@@ -1,4 +1,3 @@
-# Streamlit library's
 import numpy as np
 import pandas as pd
 import scipy.sparse
@@ -14,11 +13,13 @@ head()
 import warnings
 warnings.filterwarnings("ignore")
 
-# Read in CSV files
+# ----READ IN CSV FILES----
 books = read_data('/Users/dtorres/PycharmProjects/Book_Recommendation_App/data/Books.csv')
 users = read_data('/Users/dtorres/PycharmProjects/Book_Recommendation_App/data/Users.csv')
 ratings = read_data('/Users/dtorres/PycharmProjects/Book_Recommendation_App/data/Ratings.csv')
 
+
+# ----PROCESS DATA----
 # Remove columns that are not needed
 books = books[['ISBN', 'Book-Title', 'Book-Author', 'Year-Of-Publication', 'Publisher', 'Image-URL-M']]
 
@@ -47,12 +48,16 @@ final_rating.drop_duplicates(['user_id', 'title'], inplace=True)
 book_pivot = final_rating.pivot_table(columns='user_id', index='title', values='rating')
 book_pivot.fillna(0, inplace=True)
 
+
+# ----MODEL DATA----
 # Create matrix
 book_sparse = scipy.sparse.csr_matrix(book_pivot)
 
 # Model data with Cosine Similarity
 model = cosine_similarity(book_sparse)
 
+
+# ----GETS BOOK SELECTION FROM USER----
 # Gets input from user.
 selection = st.selectbox('Select a book:', book_pivot.index)
 sel_index = book_pivot.index.get_loc(selection)
@@ -74,6 +79,7 @@ if selection is not None:
         st.write('')
 
 
+# ----GET RECOMMENDED BOOKS----
 # Remove selected book from suggestion pool
 book_pivot.drop(index=selection, inplace=True)
 
@@ -81,10 +87,11 @@ book_pivot.drop(index=selection, inplace=True)
 suggestions_list = list(enumerate(model[sel_index]))
 suggestions = sorted(suggestions_list, key = lambda x:x[1], reverse=True)[1:7]
 
+
+# ----DISPLAY RECOMMENDED BOOKS----
 # Get image files and titles for book suggestions
 rec_images = []
 rec_titles = []
-
 for i in range(len(suggestions)):
     rec_images.append(books.loc[books['title'] == book_pivot.index[int(suggestions[i][0])], 'image'].iloc[0])
     rec_titles.append(books.loc[books['title'] == book_pivot.index[int(suggestions[i][0])], 'title'].iloc[0])
