@@ -19,7 +19,7 @@ books = read_data('/Users/dtorres/PycharmProjects/Book_Recommendation_App/data/B
 users = read_data('/Users/dtorres/PycharmProjects/Book_Recommendation_App/data/Users.csv')
 ratings = read_data('/Users/dtorres/PycharmProjects/Book_Recommendation_App/data/Ratings.csv')
 
-# Remove unnecessary columns
+# Remove columns that are not needed
 books = books[['ISBN', 'Book-Title', 'Book-Author', 'Year-Of-Publication', 'Publisher', 'Image-URL-M']]
 
 # Rename the columns for each data set
@@ -111,7 +111,7 @@ ages_ratings = ages_ratings.merge(user_ages, on='user_id')
 ages_ratings.rename(columns={'rating': 'avg_rating'}, inplace=True)
 
 # Display scatter plot
-plot = px.scatter(data_frame=ages_ratings, x='age', y='avg_rating', trendline='ols',
+plot = px.scatter(data_frame=ages_ratings, x='age', y='avg_rating',
                   labels={
                       'age': 'User Age',
                       'avg_rating': 'Average Rating'
