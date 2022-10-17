@@ -14,10 +14,12 @@ head()
 
 warnings.filterwarnings("ignore")
 
+
 # ----READ IN CSV FILES----
 books = read_data('/Users/dtorres/PycharmProjects/Book_Recommendation_App/data/Books.csv')
 users = read_data('/Users/dtorres/PycharmProjects/Book_Recommendation_App/data/Users.csv')
 ratings = read_data('/Users/dtorres/PycharmProjects/Book_Recommendation_App/data/Ratings.csv')
+
 
 # ----PROCESS DATA----
 # Remove columns that are not needed
@@ -51,12 +53,14 @@ final_rating.drop_duplicates(['user_id', 'title'], inplace=True)
 book_pivot = final_rating.pivot_table(columns='user_id', index='title', values='rating')
 book_pivot.fillna(0, inplace=True)
 
+
 # ----MODEL DATA----
 # Create matrix
 book_sparse = scipy.sparse.csr_matrix(book_pivot)
 
 # Model data with Cosine Similarity
 model = cosine_similarity(book_sparse)
+
 
 # ----GETS BOOK SELECTION FROM USER----
 # Gets input from user.
@@ -81,6 +85,7 @@ if selection is not None:
     with col3:
         st.write('')
 
+
 # ----GET RECOMMENDED BOOKS----
 # Remove selected book from suggestion pool
 book_pivot.drop(index=selection, inplace=True)
@@ -88,6 +93,7 @@ book_pivot.drop(index=selection, inplace=True)
 # Get suggestions
 suggestions_list = list(enumerate(model[sel_index]))
 suggestions = sorted(suggestions_list, key=lambda x: x[1], reverse=True)[1:7]
+
 
 # ----DISPLAY RECOMMENDED BOOKS----
 # Get image files and titles for book suggestions
@@ -103,6 +109,7 @@ st.image(rec_images, caption=rec_titles, width=100)
 
 # Display seperator
 st.markdown("---")
+
 
 # ----DISPLAY SCATTER PLOT----
 # Get user ages older than 12 and less than 90
@@ -126,6 +133,7 @@ plot = px.scatter(data_frame=ages_ratings, x='age', y='avg_rating',
                   title='Average Rating of User by Age')
 st.plotly_chart(plot)
 
+
 # ----DISPLAY HISTOGRAM----
 # Group books by the same year together
 year_reviews = rating_with_book.groupby('year')['rating'].count().reset_index()
@@ -145,7 +153,8 @@ plot2 = px.histogram(year_reviews, x='year', y='count', nbins=80, log_y=True,
                      title='Number of Ratings by Publishing Year')
 st.plotly_chart(plot2)
 
-# ----DISPLAY BAR CHART FOR LOCATIONS----
+
+# ----DISPLAY BAR CHART----
 # Get users and locations where the location is not Null
 user_countries = users[~users.location.isnull()]
 user_countries = user_countries[['user_id', 'location']]
