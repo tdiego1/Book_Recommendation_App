@@ -2,7 +2,6 @@
 import numpy as np
 import pandas as pd
 import scipy.sparse
-import sklearn.neighbors
 from sklearn.metrics.pairwise import cosine_similarity
 import streamlit as st
 import plotly.express as px
@@ -30,7 +29,7 @@ users.rename(columns= {'User-ID':'user_id', 'Location':'location', 'Age':'age'},
 ratings.rename(columns= {'User-ID': 'user_id', 'Book-Rating': 'rating'}, inplace=True)
 
 # Get users who have 100 reviews or more
-x = ratings['user_id'].value_counts() > 200
+x = ratings['user_id'].value_counts() > 150
 y = x[x].index
 ratings = ratings[ratings['user_id'].isin(y)]
 
@@ -49,14 +48,10 @@ final_rating.drop_duplicates(['user_id', 'title'], inplace=True)
 book_pivot = final_rating.pivot_table(columns='user_id', index='title', values='rating')
 book_pivot.fillna(0, inplace=True)
 
-# Create matrix/
+# Create matrix
 book_sparse = scipy.sparse.csr_matrix(book_pivot)
 
-# Train nearest neighbor algorithm
-#model = sklearn.neighbors.NearestNeighbors(algorithm='brute')
-#model.fit(book_sparse)
-
-# Cosine Similarity
+# Model data with Cosine Similarity
 model = cosine_similarity(book_sparse)
 
 # Gets input from user.
