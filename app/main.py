@@ -6,19 +6,26 @@ from sklearn.metrics.pairwise import cosine_similarity
 import streamlit as st
 import plotly.express as px
 from utils import read_data, head
+from pathlib import Path
 
 # Streamlit header
 head()
 
 # Filter out warnings
-
 warnings.filterwarnings("ignore")
 
+# Get directories
+home_dir = Path.cwd()
+books_path = home_dir / 'data/Books.csv'
+user_path = home_dir / 'data/Users.csv'
+ratings_path = home_dir / 'data/Ratings.csv'
+print(home_dir)
+print(books_path)
 
 # ----READ IN CSV FILES----
-books = read_data('../data/Books.csv')
-users = read_data('../data/Users.csv')
-ratings = read_data('../data/Ratings.csv')
+books = read_data(books_path)
+users = read_data(user_path)
+ratings = read_data(ratings_path)
 
 
 # ----PROCESS DATA----
