@@ -1,4 +1,5 @@
 import warnings
+import logging
 import numpy as np
 import pandas as pd
 import scipy.sparse
@@ -8,8 +9,12 @@ import plotly.express as px
 from utils import read_data, head
 from pathlib import Path
 
+# Initialize logging settings
+logging.basicConfig(filename='app.log', level='INFO', force=True)
+
 # Streamlit header
 head()
+
 
 # Filter out warnings
 warnings.filterwarnings("ignore")
@@ -19,13 +24,16 @@ home_dir = Path.cwd()
 books_path = home_dir / 'data/Books.csv'
 user_path = home_dir / 'data/Users.csv'
 ratings_path = home_dir / 'data/Ratings.csv'
-print(home_dir)
-print(books_path)
+
 
 # ----READ IN CSV FILES----
-books = read_data(books_path)
-users = read_data(user_path)
-ratings = read_data(ratings_path)
+try:
+    books = read_data(books_path)
+    users = read_data(user_path)
+    ratings = read_data(ratings_path)
+except Exception as e:
+    print('error')
+    logging.exception(str(e))
 
 
 # ----PROCESS DATA----
@@ -62,57 +70,68 @@ book_pivot.fillna(0, inplace=True)
 
 
 # ----MODEL DATA----
-# Create matrix
-book_sparse = scipy.sparse.csr_matrix(book_pivot)
+try:
+    # Create matrix
+    book_sparse = scipy.sparse.csr_matrix(book_pivot)
 
-# Model data with Cosine Similarity
-model = cosine_similarity(book_sparse)
+    # Model data with Cosine Similarity
+    model = cosine_similarity(book_sparse)
+except Exception as e:
+    logging.error(str(e))
 
 
 # ----GETS BOOK SELECTION FROM USER----
-# Gets input from user.
-selection = st.selectbox('Select a book:', book_pivot.index)
-sel_index = book_pivot.index.get_loc(selection)
+try:
+    # Gets input from user.
+    selection = st.selectbox('Select a book:', book_pivot.index)
+    sel_index = book_pivot.index.get_loc(selection)
 
-# Check if there is a book selected.
-if selection is not None:
-    st.markdown("##### This is your selected book:")
+    # Check if there is a book selected.
+    if selection is not None:
+        st.markdown("##### This is your selected book:")
 
-    # Create columns
-    col1, col2, col3 = st.columns(3)
+        # Create columns
+        col1, col2, col3 = st.columns(3)
 
-    # Find image URL and display book
-    image = books.loc[books['title'] == selection, 'image'].iloc[0]
+        # Find image URL and display book
+        image = books.loc[books['title'] == selection, 'image'].iloc[0]
 
-    # Centers Book image.
-    with col1:
-        st.write('')
-    with col2:
-        st.image(image, caption=selection, width=100)
-    with col3:
-        st.write('')
+        # Centers Book image.
+        with col1:
+            st.write('')
+        with col2:
+            st.image(image, caption=selection, width=100)
+        with col3:
+            st.write('')
+except IOError as e:
+    logging.error(str(e))
 
 
 # ----GET RECOMMENDED BOOKS----
-# Remove selected book from suggestion pool
-book_pivot.drop(index=selection, inplace=True)
+try:
+    # Remove selected book from suggestion pool
+    book_pivot.drop(index=selection, inplace=True)
 
-# Get suggestions
-suggestions_list = list(enumerate(model[sel_index]))
-suggestions = sorted(suggestions_list, key=lambda x: x[1], reverse=True)[1:7]
-
+    # Get suggestions
+    suggestions_list = list(enumerate(model[sel_index]))
+    suggestions = sorted(suggestions_list, key=lambda x: x[1], reverse=True)[1:7]
+except Exception as e:
+    logging.exception(str(e))
 
 # ----DISPLAY RECOMMENDED BOOKS----
-# Get image files and titles for book suggestions
-rec_images = []
-rec_titles = []
-for i in range(len(suggestions)):
-    rec_images.append(books.loc[books['title'] == book_pivot.index[int(suggestions[i][0])], 'image'].iloc[0])
-    rec_titles.append(books.loc[books['title'] == book_pivot.index[int(suggestions[i][0])], 'title'].iloc[0])
+try:
+    # Get image files and titles for book suggestions
+    rec_images = []
+    rec_titles = []
+    for i in range(len(suggestions)):
+        rec_images.append(books.loc[books['title'] == book_pivot.index[int(suggestions[i][0])], 'image'].iloc[0])
+        rec_titles.append(books.loc[books['title'] == book_pivot.index[int(suggestions[i][0])], 'title'].iloc[0])
 
-# Display Recommended books
-st.markdown("##### These are your recommended books:")
-st.image(rec_images, caption=rec_titles, width=100)
+    # Display Recommended books
+    st.markdown("##### These are your recommended books:")
+    st.image(rec_images, caption=rec_titles, width=100)
+except Exception as e:
+    logging.exception(str(e))
 
 # Display seperator
 st.markdown("---")
