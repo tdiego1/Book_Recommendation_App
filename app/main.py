@@ -15,7 +15,6 @@ logging.basicConfig(filename='app.log', level='INFO', force=True)
 # Streamlit header
 head()
 
-
 # Filter out warnings
 warnings.filterwarnings("ignore")
 
@@ -76,6 +75,7 @@ try:
 
     # Model data with Cosine Similarity
     model = cosine_similarity(book_sparse)
+
 except Exception as e:
     logging.error(str(e))
 
@@ -114,9 +114,10 @@ try:
 
     # Get suggestions
     suggestions_list = list(enumerate(model[sel_index]))
-    suggestions = sorted(suggestions_list, key=lambda x: x[1], reverse=True)[1:7]
+    suggestions = sorted(suggestions_list, key=lambda x: x[1], reverse=True)[1:6]
 except Exception as e:
     logging.exception(str(e))
+
 
 # ----DISPLAY RECOMMENDED BOOKS----
 try:
