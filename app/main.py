@@ -1,6 +1,5 @@
 import warnings
 import logging
-import numpy as np
 import pandas as pd
 import scipy.sparse
 from sklearn.metrics.pairwise import cosine_similarity
@@ -19,10 +18,10 @@ head()
 warnings.filterwarnings("ignore")
 
 # Get directories
-home_dir = Path.cwd()
-books_path = home_dir / 'data/Books.csv'
-user_path = home_dir / 'data/Users.csv'
-ratings_path = home_dir / 'data/Ratings.csv'
+home_dir = Path(__file__)
+books_path = home_dir.parent.parent.joinpath('data/Books.csv')
+user_path = home_dir.parent.parent.joinpath('data/Users.csv')
+ratings_path = home_dir.parent.parent.joinpath('data/Ratings.csv')
 
 
 # ----READ IN CSV FILES----
@@ -31,7 +30,6 @@ try:
     users = read_data(user_path)
     ratings = read_data(ratings_path)
 except Exception as e:
-    print('error')
     logging.exception(str(e))
 
 
@@ -46,36 +44,69 @@ books.rename(
 users.rename(columns={'User-ID': 'user_id', 'Location': 'location', 'Age': 'age'}, inplace=True)
 ratings.rename(columns={'User-ID': 'user_id', 'Book-Rating': 'rating'}, inplace=True)
 
-# Get users who have 150 reviews or more
+
+# ----DATA ANALYSIS----
+# Remove users that do not have an age.
+users = users[~users.age.isnull()]
+
+# Get user ages older than 12 and less than 90
+users = users[users['age'] > 12]
+users = users[users['age'] < 90]
+
+# Get only countries
+users['location'] = users['location'].str.rsplit(',').str[-1]
+users['location'] = users['location'].str.strip()
+
+# Remove users that do not have a location
+users = users[~users.location.isnull()]
+
+# Replace empty values with NaN
+#users['location'].replace('', np.nan, inplace=True)
+#users['location'].replace('n/a', np.nan, inplace=True)
+#users.dropna(subset=['location'], inplace=True)
+
+# Change 'us' to 'usa'
+users['location'].replace('us', 'usa', inplace=True)
+
+# Get only ratings from the user list
+ratings = ratings[ratings['user_id'].isin(users.index)]
+
+# Get users who have 150 ratings or more
 count_ratings = ratings['user_id'].value_counts() > 150
-y = count_ratings[count_ratings].index
-ratings = ratings[ratings['user_id'].isin(y)]
+ratings_index = count_ratings[count_ratings].index
+clean_ratings = ratings[ratings['user_id'].isin(ratings_index)]
 
 # Merge ratings with books
-rating_with_book = ratings.merge(books, on='ISBN')
+ratings_with_book = clean_ratings.merge(books, on='ISBN')
+
+# Convert year column into integers
+ratings_with_book.year = pd.to_numeric(ratings_with_book.year, errors='coerce').fillna(0).astype('int')
+
+# Remove ratings and books with a year less than or equal to 1900 and greater than or equal to  2022
+ratings_with_book = ratings_with_book[(ratings_with_book['year'] >= 1900)]
+ratings_with_book = ratings_with_book[ratings_with_book['year'] <= 2022]
 
 # Extract books that have received more than 50 ratings
-num_rating = rating_with_book.groupby('title')['rating'].count().reset_index()
+num_rating = ratings_with_book.groupby('title')['rating'].count().reset_index()
 num_rating.rename(columns={'rating': 'number_of_ratings'}, inplace=True)
-final_rating = rating_with_book.merge(num_rating, on='title')
-final_rating = final_rating[final_rating['number_of_ratings'] >= 50]
+final_ratings = ratings_with_book.merge(num_rating, on='title')
+final_ratings = final_ratings[final_ratings['number_of_ratings'] >= 50]
 
 # Remove duplicate records
-final_rating.drop_duplicates(['user_id', 'title'], inplace=True)
-
-# Create pivot table
-book_pivot = final_rating.pivot_table(columns='user_id', index='title', values='rating')
-book_pivot.fillna(0, inplace=True)
+final_ratings.drop_duplicates(['user_id', 'title'], inplace=True)
 
 
 # ----MODEL DATA----
 try:
+    # Create pivot table
+    book_pivot = final_ratings.pivot_table(columns='user_id', index='title', values='rating')
+    book_pivot.fillna(0, inplace=True)
+
     # Create matrix
-    book_sparse = scipy.sparse.csr_matrix(book_pivot)
+    book_matrix = scipy.sparse.csr_matrix(book_pivot)
 
     # Model data with Cosine Similarity
-    model = cosine_similarity(book_sparse)
-
+    model = cosine_similarity(book_matrix)
 except Exception as e:
     logging.error(str(e))
 
@@ -118,6 +149,8 @@ try:
 except Exception as e:
     logging.exception(str(e))
 
+print(suggestions)
+
 
 # ----DISPLAY RECOMMENDED BOOKS----
 try:
@@ -140,22 +173,18 @@ st.markdown("---")
 
 # ----DISPLAY SCATTER PLOT----
 # Get user ages older than 12 and less than 90
-x_values = []
-user_ages = users[~users.age.isnull()]
-user_ages = user_ages[user_ages['age'] < 90]
-user_ages = user_ages[user_ages['age'] > 12]
-user_ages = user_ages[['user_id', 'age']]
+user_ages = users[['user_id', 'age']]
 
 # Merge ratings with user ages and average the ratings
-ages_ratings = final_rating.groupby('user_id', as_index=False, sort=False)['rating'].mean()
+ages_ratings = clean_ratings.groupby('user_id', as_index=False, sort=False)['rating'].mean()
 ages_ratings = ages_ratings.merge(user_ages, on='user_id')
 ages_ratings.rename(columns={'rating': 'avg_rating'}, inplace=True)
 
 # Display scatter plot
-plot = px.scatter(data_frame=ages_ratings, x='age', y='avg_rating',
+plot = px.scatter(data_frame=ages_ratings, x='age', y='avg_rating', trendline='ols',
                   labels={
                       'age': 'User Age',
-                      'avg_rating': 'Average Rating'
+                      'avg_rating': 'Avg Ratings'
                   },
                   title='Average Rating of User by Age')
 st.plotly_chart(plot)
@@ -163,16 +192,11 @@ st.plotly_chart(plot)
 
 # ----DISPLAY HISTOGRAM----
 # Group books by the same year together
-year_reviews = rating_with_book.groupby('year')['rating'].count().reset_index()
-year_reviews.year = pd.to_numeric(year_reviews.year, errors='coerce').fillna(0).astype('int')
+year_reviews = ratings_with_book.groupby('year')['rating'].count().reset_index()
 year_reviews.rename(columns={'rating': 'count'}, inplace=True)
 
-# Correct publishing year
-year_reviews = year_reviews[(year_reviews['year'] >= 1900)]
-year_reviews = year_reviews[year_reviews['year'] <= 2022]
-
 # Display Histogram
-plot2 = px.histogram(year_reviews, x='year', y='count', nbins=80, log_y=True,
+plot2 = px.histogram(year_reviews, x='year', y='count', nbins=20, log_y=True,
                      labels={
                          'year': 'Publishing Year',
                          'count': 'Number of Ratings'
@@ -183,23 +207,10 @@ st.plotly_chart(plot2)
 
 # ----DISPLAY BAR CHART----
 # Get users and locations where the location is not Null
-user_countries = users[~users.location.isnull()]
-user_countries = user_countries[['user_id', 'location']]
-
-# Get only countries
-user_countries['location'] = user_countries['location'].str.rsplit(',').str[-1]
-user_countries['location'] = user_countries['location'].str.strip()
-
-# Replace empty values with NaN
-user_countries['location'].replace('', np.nan, inplace=True)
-user_countries['location'].replace('n/a', np.nan, inplace=True)
-user_countries.dropna(subset=['location'], inplace=True)
-
-# Change 'us' to 'usa'
-user_countries['location'].replace('us', 'usa', inplace=True)
+user_countries = users[['user_id', 'location']]
 
 # Merge users and ratings
-country_reviews = ratings.groupby('user_id', as_index=False, sort=False)['rating'].size()
+country_reviews = clean_ratings.groupby('user_id', as_index=False, sort=False)['rating'].size()
 country_reviews = country_reviews.merge(user_countries, on='user_id')
 country_reviews.rename(columns={'size': 'count'}, inplace=True)
 country_reviews = country_reviews.groupby('location', as_index=False, sort=False)['count'].sum()

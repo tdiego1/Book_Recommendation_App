@@ -8,9 +8,4 @@ def read_data(path):
 
 def head():
     st.markdown("# Book Recommendation App")
-
     st.caption("By Diego Torres", unsafe_allow_html=True)
-
-
-def body(sample):
-    st.markdown('----')
