@@ -1,5 +1,6 @@
 import warnings
 import logging
+import numpy as np
 import pandas as pd
 import scipy.sparse
 from sklearn.metrics.pairwise import cosine_similarity
@@ -61,9 +62,9 @@ users['location'] = users['location'].str.strip()
 users = users[~users.location.isnull()]
 
 # Replace empty values with NaN
-#users['location'].replace('', np.nan, inplace=True)
-#users['location'].replace('n/a', np.nan, inplace=True)
-#users.dropna(subset=['location'], inplace=True)
+users['location'].replace('', np.nan, inplace=True)
+users['location'].replace('n/a', np.nan, inplace=True)
+users.dropna(subset=['location'], inplace=True)
 
 # Change 'us' to 'usa'
 users['location'].replace('us', 'usa', inplace=True)
